@@ -15,7 +15,7 @@ class GwyObject
   attr_accessor :content, :name
   def initialize(raw)
     @content = {}
-    @name = raw.slice!(0, raw.index("\0")+1).chomp
+    @name = raw.slice!(0, raw.index("\0")+1)[0..-2]
     ptr = raw.slice!(0,4).unpack1("L")
     puts "container: #{name}"
     puts "size: #{ptr}"
@@ -24,7 +24,7 @@ class GwyObject
     
     # Parsing content
     while raw && raw.size > 0
-      component_name = raw.slice!(0, raw.index("\0")+1).chomp
+      component_name = raw.slice!(0, raw.index("\0")+1)[0..-2]
       component_type = raw.slice!(0)
       puts "Type: #{component_type}"
       puts "remaining size #{raw.size}"
@@ -55,12 +55,12 @@ class GwyObject
         puts "of #{array_length}"
         component_content = raw.slice!(0, array_length*8).unpack("d")
       when 's' # UTF-8 string \0 terminated
-        component_content = raw.slice!(0, raw.index("\0")+1).chomp
+        component_content = raw.slice!(0, raw.index("\0")+1)[0..-2]
       when 'S' # Array of UTF-8 string \0 terminated
         array_length = raw.slice!(0, 4).unpack1("L")
         component_content = Array.new(array_length)
         (0..array_length-1).each do |i|
-          component_content[i] = raw.slice!(0,raw.index("\0")+1).chomp
+          component_content[i] = raw.slice!(0,raw.index("\0")+1)[0..-2]
         end
       when 'o' # GwyObject
         puts "obj!"
