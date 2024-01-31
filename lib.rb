@@ -1,3 +1,5 @@
+require 'fileutils'
+
 class GwyFile
   attr_accessor :name, :data, :path
   def initialize(path)
@@ -5,7 +7,7 @@ class GwyFile
     @path = path
     @name = File.basename(@path, '.gwy')
     raw = File.open(path, 'rb').read
-    puts "filesize: #{raw.size}" if $debug
+    puts "filesize: #{raw.size}"
     raise "File header didn't seem like a gwy file" unless raw.slice!(0,4) == 'GWYP'
     @data, raw = GwyObject.new(raw, 'GWY')
 
@@ -162,7 +164,7 @@ class GwyObject
     object_length = raw.slice!(0,4).unpack1("L") # Object length in bytes
     puts "obj: #{@name} length: #{@object_length} raw size: #{raw.size}" if $debug
     # Parsing content
-    while thisobj_raw.size > 0 # Assumes that deserialize() eventually cuts raw down to ""
+    while thisobj_raw && thisobj_raw.size > 0 # Assumes that deserialize() eventually cuts raw down to ""
       component_name, component_content, thisobj_raw = deserialize(thisobj_raw)
       # Asserting component_name to be valid hash key. Might need to sanitize.
       @content[component_name] = component_content
@@ -228,9 +230,11 @@ class GwyObject
       # This may not yet be implemented correctly
       # Afterall, who uses a GwyObject array???
       array_length = raw.slice!(0, 4).unpack1("L")
+      puts "Object array with #{array_length} components"
       component_content = Array.new(array_length)
       (0..array_length-1).each do |i|
-        component_content[i], raw = GwyObject.new(raw)
+        component_content[i] = GwyObject.new(raw, component_name)
+        raw = component_content[i].leftover
       end
     else
       raise "Unrecognized component type #{component_type.unpack1("c").to_s(16)}, eating away the rest of this object"
