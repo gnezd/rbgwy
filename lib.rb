@@ -131,14 +131,18 @@ set palette rgbformulae 34,35,36; set title 'rgbformulae 34,35,36'
 
 set title '#{@name.gsub('_', '\_')}'
 unset key
-set xtics out (#{xtics.join(", ")})
+unset xtics
+set x2tics out (#{xtics.join(", ")})
 set ytics out (#{ytics.join(", ")})
-set xlabel '#{unitstr}'
+
+set yrange [#{yres-1}:0]
+set xrange [0:#{xres-1}]
+set ylabel '#{unitstr}' rotate by 0
 
 set cbrange [#{min}:#{max}]
 set cbtics (#{cbtics.join(", ")})
 set cblabel '#{cb_unit}' rotate by 0
-plot $image matrix w image
+plot $image matrix w image axes x2y1
 EOGPH
 
     gplot.puts gpheadder
