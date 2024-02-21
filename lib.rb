@@ -7,7 +7,7 @@ class GwyFile
     @path = path
     @name = File.basename(@path, '.gwy')
     raw = File.open(path, 'rb').read
-    puts "filesize: #{raw.size}"
+    puts "filesize: #{raw.size}" if $debug
     raise "File header didn't seem like a gwy file" unless raw.slice!(0,4) == 'GWYP'
     @data, raw = GwyObject.new(raw, 'GWY')
 
@@ -24,12 +24,11 @@ class GwyFile
     end
 
     if @data.keys.include? "/#{options[:channel]}/data"
-      channel = "/#{channel}"
+      channel = "/#{options[:channel]}"
     else
       puts "Selected channel #{options[:channel]} not found, plotting channel 0 instead."if options[:channel]
       channel = "/0"
     end
-    
     # Extract data needed
     plot_data = @data[channel+'/data']['data']
     xres = @data[channel+'/data']['xres']
@@ -109,26 +108,37 @@ class GwyFile
     end
 
 
-    # cbtic
-    cb_cuts = 5 # n color bar cuts by n-1 cbtics
-    # Use nm for height
-    if Math.log10([max.abs, min.abs].max) < -7 # Accomodate negative heights
-      cb_scale_factor = 1E9
-      cb_unit = 'nm'
-    else # μm`
-      cb_scale_factor = 1E6
-      cb_unit = 'μm'
+
+    # Plot style
+    case options[:style]
+    when 'KPFM'
+      palette = 'gray'
+      cb_unit = 'V'
+    when 'LFM'
+      # Fix later
+    else # Height
+      palette = 'rgbformulae 34,35,36'
+      # cbtic
+      cb_cuts = 5 # n color bar cuts by n-1 cbtics
+      # Use nm for height
+      if Math.log10([max.abs, min.abs].max) < -7 # Accomodate negative heights
+        cb_scale_factor = 1E9
+        cb_unit = 'nm'
+      else # μm`
+        cb_scale_factor = 1E6
+        cb_unit = 'μm'
+      end
+      # Construct cbtics string. 究極一行文 as always
+      cbtics = (0..cb_cuts).map {|ith| "\"#{"%.3g" % ((min+(max-min)*ith/cb_cuts)*cb_scale_factor)}\" #{min+(max-min)*ith/cb_cuts}"} # 3 significant digits
+      cbtics_str = "set cbtics (#{cbtics.join(", ")})"
     end
-    # Construct cbtics string. 究極一行文 as always
-    cbtics = (0..cb_cuts).map {|ith| "\"#{"%.3g" % ((min+(max-min)*ith/cb_cuts)*cb_scale_factor)}\" #{min+(max-min)*ith/cb_cuts}"} # 3 significant digits
 
 # Plot terminal: only png for now
     gpheadder=<<EOGPH
 set terminal png size 800,800
 set size ratio -1
 set output '#{out_dir}/#{plot_basename}.png'
-set palette rgbformulae 34,35,36; set title 'rgbformulae 34,35,36'
-
+set palette #{palette}
 set title '#{@name.gsub('_', '\_')}'
 unset key
 unset xtics
@@ -140,7 +150,7 @@ set xrange [0:#{xres-1}]
 set ylabel '#{unitstr}' rotate by 0
 
 set cbrange [#{min}:#{max}]
-set cbtics (#{cbtics.join(", ")})
+#{cbtics_str}
 set cblabel '#{cb_unit}' rotate by 0
 plot $image matrix w image axes x2y1
 EOGPH
