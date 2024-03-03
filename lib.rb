@@ -110,48 +110,65 @@ class GwyFile
 
 
     # Plot style
-    case options[:style]
-    when 'KPFM'
-      palette = 'gray'
-      cb_unit = 'V'
-    when 'LFM'
-      # Fix later
-    else # Height
-      palette = 'rgbformulae 34,35,36'
-      # cbtic
-      cb_cuts = 5 # n color bar cuts by n-1 cbtics
-      # Use nm for height
-      if Math.log10([max.abs, min.abs].max) < -7 # Accomodate negative heights
-        cb_scale_factor = 1E9
-        cb_unit = 'nm'
-      else # μm`
-        cb_scale_factor = 1E6
-        cb_unit = 'μm'
+    # Initialize
+    palette = ""
+    cb_unit = ""
+    cbtics_str = ""
+    background = ""
+    tc = ""
+    lc = ""
+
+    styles = options[:style].split(',')
+    styles.each do |style|
+      case style
+      when "KPFM"
+        palette = 'gray'
+        cb_unit = 'V'
+      when "LFM"
+        # Fix later
+      when "Height" # Height
+        palette = 'rgbformulae 34,35,36'
+        # cbtic
+        cb_cuts = 5 # n color bar cuts by n-1 cbtics
+        # Use nm for height
+        if Math.log10([max.abs, min.abs].max) < -7 # Accomodate negative heights
+          cb_scale_factor = 1E9
+          cb_unit = 'nm'
+        else # μm`
+          cb_scale_factor = 1E6
+          cb_unit = 'μm'
+        end
+        # Construct cbtics string. 究極一行文 as always
+        cbtics = (0..cb_cuts).map {|ith| "\"#{"%.3g" % ((min+(max-min)*ith/cb_cuts)*cb_scale_factor)}\" #{min+(max-min)*ith/cb_cuts}"} # 3 significant digits
+        cbtics_str = "set cbtics (#{cbtics.join(", ")})"
+      when "dark"
+        background = 'background "black"'
+        tc = "tc 'white'"
+        lc = "lc 'white'"
       end
-      # Construct cbtics string. 究極一行文 as always
-      cbtics = (0..cb_cuts).map {|ith| "\"#{"%.3g" % ((min+(max-min)*ith/cb_cuts)*cb_scale_factor)}\" #{min+(max-min)*ith/cb_cuts}"} # 3 significant digits
-      cbtics_str = "set cbtics (#{cbtics.join(", ")})"
     end
 
 # Plot terminal: only png for now
     gpheadder=<<EOGPH
-set terminal png size 800,800
+set terminal png size 800,800 #{background}
 set size ratio -1
 set output '#{out_dir}/#{plot_basename}.png'
 set palette #{palette}
-set title '#{@name.gsub('_', '\_')}'
+set title '#{@name.gsub('_', '\_')}' #{tc}
 unset key
+set border #{lc}
 unset xtics
-set x2tics out (#{xtics.join(", ")})
-set ytics out (#{ytics.join(", ")})
+set x2tics out (#{xtics.join(", ")}) #{tc}
+set ytics out (#{ytics.join(", ")}) #{tc}
 
 set yrange [#{yres-1}:0]
 set xrange [0:#{xres-1}]
-set ylabel '#{unitstr}' rotate by 0
+set xlabel #{tc}
+set ylabel '#{unitstr}' rotate by 0 #{tc}
 
 set cbrange [#{min}:#{max}]
 #{cbtics_str}
-set cblabel '#{cb_unit}' rotate by 0
+set cblabel '#{cb_unit}' rotate by 0 #{tc}
 plot $image matrix w image axes x2y1
 EOGPH
 
