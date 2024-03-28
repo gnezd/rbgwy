@@ -1,7 +1,7 @@
 require 'fileutils'
 
 class GwyFile
-  attr_accessor :name, :data, :path
+  attr_accessor :name, :data, :path, :channels
   def initialize(path)
     raise "File #{path} doesn't exist!" unless File.exist? path
     @path = path
@@ -11,6 +11,11 @@ class GwyFile
     raise "File header didn't seem like a gwy file" unless raw.slice!(0,4) == 'GWYP'
     @data, raw = GwyObject.new(raw, 'GWY')
 
+    @channels = []
+    @data.keys.each do |key|
+      match = key.match /^\/(\d)\/data\/title/
+      @channels[match[1].to_i] = @data[key] if match
+    end
   end
   
   # Plot GwyFile and return path to plot
